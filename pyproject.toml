@@ -1,0 +1,12 @@
+[project]
+name = "guardrail-mcp"
+version = "0.1.0"
+description = "A small SQLite-backed text guardrail MCP server demo"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=2.3.0,<3.0.0",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "guardrail-demo": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "python",
+        "server.py"
+      ]
+    }
+  }
+}
