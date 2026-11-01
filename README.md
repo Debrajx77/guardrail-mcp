@@ -104,8 +104,21 @@ guardrail-mcp/
 | Data      | SQLite (`sqlite3`)          |
 | Logging   | Python `logging` → stderr   |
 
+## Live Deployment
+
+The server is deployed on Render and accessible at:
+`https://guardrail-mcp.onrender.com/mcp`
+
+Test with a Python client:
+
+```python
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
+# ... (test code)
+
 ## Notes
 
 - This is a local demo, not a production content-safety system.
 - The server communicates over stdio when launched by an MCP host.
 - `manifest.json` and the `.mcpb` bundle are included for extension packaging, but the primary tested path is the VS Code MCP client.
+```
