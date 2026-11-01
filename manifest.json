@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.2",
+  "name": "guardrail-mcp",
+  "display_name": "manifest.json",
+  "version": "1.0.0",
+  "description": "NA",
+  "author": {
+    "name": "debraj"
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "python",
+        "server.py"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "check_text"
+    }
+  ],
+  "license": "MIT"
+}

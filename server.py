@@ -1,33 +1,44 @@
 import sqlite3
+import logging
+import sys
 from pathlib import Path
 
-from mcp.server import MCPServer
+from mcp.server.fastmcp import FastMCP
 
+# --- Logging: MUST go to stderr ---
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stderr,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+)
+logger = logging.getLogger("guardrail")
 
 DATABASE_PATH = Path(__file__).with_name("guardrail_demo.db")
-mcp = MCPServer("Guardrail Demo")
-
-
-def load_blocked_terms() -> list[tuple[str, str]]:
-    if not DATABASE_PATH.exists():
-        raise FileNotFoundError(
-            "Demo database not found. Run `uv run python seed_db.py` first."
-        )
-
-    with sqlite3.connect(DATABASE_PATH) as connection:
-        return connection.execute(
-            "SELECT term, reason FROM blocked_terms ORDER BY term"
-        ).fetchall()
+mcp = FastMCP("Guardrail Demo")
 
 
 @mcp.tool()
 def check_text(text: str) -> str:
-    """Check text against the demo database's blocked-term policies."""
-    lowered_text = text.casefold()
+    """Check submitted text against blocked-term policies."""
+    try:
+        with sqlite3.connect(DATABASE_PATH, timeout=5) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT term, reason FROM blocked_terms"
+            )
+            rows = cursor.fetchall()
+    except Exception as e:
+        logger.error(f"Database failure: {e}")
+        return (
+            "Policy check is temporarily degraded. "
+            "Could not reach the policy database. Please try again later."
+        )
+
+    lowered = text.casefold()
     matches = [
         f"{term} ({reason})"
-        for term, reason in load_blocked_terms()
-        if term.casefold() in lowered_text
+        for term, reason in rows
+        if term.casefold() in lowered
     ]
 
     if matches:
