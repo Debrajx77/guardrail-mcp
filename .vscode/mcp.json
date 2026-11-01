@@ -1,12 +1,11 @@
 {
   "servers": {
-    "guardrail-demo": {
-      "type": "stdio",
-      "command": "uv",
+    "guardrail": {
+      "command": "C:\\Users\\DEBNAJ\\.local\\bin\\uv.exe",
       "args": [
         "run",
         "--directory",
-        "${workspaceFolder}",
+        "C:\\Users\\DEBNAJ\\guardrail-mcp",
         "python",
         "server.py"
       ]

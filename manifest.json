@@ -1,14 +1,14 @@
 {
-  "manifest_version": "0.2",
+  "manifest_version": "0.4",
   "name": "guardrail-mcp",
-  "display_name": "manifest.json",
+  "display_name": "Guardrail Policy Checker",
   "version": "1.0.0",
-  "description": "NA",
+  "description": "Check text against blocked-term policies using SQLite.",
   "author": {
     "name": "debraj"
   },
   "server": {
-    "type": "python",
+    "type": "uv",
     "entry_point": "server.py",
     "mcp_config": {
       "command": "uv",
