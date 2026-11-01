@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 import sys
+import os
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -14,7 +15,8 @@ logging.basicConfig(
 logger = logging.getLogger("guardrail")
 
 DATABASE_PATH = Path(__file__).with_name("guardrail_demo.db")
-mcp = FastMCP("Guardrail Demo")
+port = int(os.environ.get("PORT", 8000))
+mcp = FastMCP("Guardrail Demo", host="127.0.0.1", port=8000)
 
 
 @mcp.tool()
@@ -47,4 +49,4 @@ def check_text(text: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http")
