@@ -1,108 +1,111 @@
-Guardrail MCP — Policy Check Server
-A production-inspired Model Context Protocol (MCP) server that validates submitted text against a SQLite-backed blocked-term policy store. Built to demonstrate resilient AI integration: when the data source fails, the server degrades gracefully instead of crashing the conversation.
+# Guardrail MCP Server
 
-🎯 Problem Statement
-Most MCP demo servers wrap clean, always-available APIs. Real enterprise systems fail. When an LLM agent calls a tool and the backend is down, the default behavior is a traceback — which corrupts the conversation and leaves the user with an unintelligible error.
+A local MCP (Model Context Protocol) server that checks submitted text against blocked-term policies stored in SQLite. Built with Python and the official MCP SDK.
 
-Guardrail solves this by inserting a resilience layer between the LLM and the data source. The AI host never sees a crash; it receives a structured, actionable degradation message it can relay to the user.
+## Features
 
-✨ Key Features
-MCP-compliant stdio server — built on the official Python SDK (FastMCP). Exposes a check_text tool that the AI host can invoke.
+- **MCP-compliant server** — exposes a `check_text` tool over stdio transport
+- **SQLite-backed policies** — blocked terms and reasons stored in a local database
+- **Graceful degradation** — returns a structured "temporarily degraded" message when the database is unreachable, instead of crashing the conversation
+- **stderr logging** — all logs go to stderr, keeping stdout clean for JSON-RPC protocol messages
+- **VS Code MCP client compatible** — tested with GitHub Copilot Agent mode
 
-SQLite-backed policy engine — queries a local blocked_terms table to match submitted text against configured policies.
+## Requirements
 
-Resilience layer — all database operations are wrapped in a structured try/except. When the database is unreachable, the server returns a user-readable degradation message instead of throwing a traceback.
+- Python 3.11 or newer
+- [uv](https://docs.astral.sh/uv/) package manager
 
-Protocol-safe logging — all logs are routed to stderr, ensuring the JSON-RPC stream on stdout remains uncorrupted.
+## Setup
 
-VS Code MCP client verified — tested end-to-end in VS Code's native MCP client (Agent mode) after bypassing a known Claude Desktop MSIX configuration bug.
-
-🏗️ Architecture
-text
-┌─────────────────────┐
-│ AI Host │ (VS Code Copilot Agent Mode / Claude Desktop)
-└──────────┬──────────┘
-│ JSON-RPC over stdio
-▼
-┌─────────────────────┐
-│ server.py │ FastMCP protocol layer
-│ @mcp.tool() │ → check_text(text)
-└──────────┬──────────┘
-│
-▼
-┌─────────────────────┐
-│ Resilience Layer │ try/except → degraded message on failure
-└──────────┬──────────┘
-│
-▼
-┌─────────────────────┐
-│ guardrail_demo.db │ SQLite: blocked_terms table
-└─────────────────────┘
-🚀 Setup
-Prerequisites
-Python 3.11 or newer
-
-uv package manager
-
-Installation
-bash
-
-# Clone the repository
-
-git clone https://github.com/Debrajx77/guardrail-mcp.git
-cd guardrail-mcp
-
-# Install dependencies
-
+```bash
 uv sync
-
-# Seed the SQLite database
-
 uv run python seed_db.py
-This creates .venv/, uv.lock, and guardrail_demo.db with sample blocked-term policies.
+```
 
-🧪 Testing
-Option 1: MCP Inspector (Browser-based)
-bash
+This creates `.venv/`, installs dependencies, and generates `guardrail_demo.db` with sample blocked-term policies.
+
+## Run
+
+### Option 1: MCP Inspector (local testing)
+
+```bash
 uv run mcp dev server.py
-Opens the MCP Inspector. Navigate to the Tools tab, select check_text, and submit text. You will see either ALLOWED or BLOCKED: <matched term>.
+```
 
-Option 2: VS Code MCP Client (Recommended for local development)
-The repository includes a .vscode/mcp.json configuration. Open it in VS Code, click the Start CodeLens, then switch Copilot Chat to Agent mode. The check_text tool will be available.
+Opens the MCP Inspector in your browser. Call the `check_text` tool with sample text to verify allowed/blocked behavior.
 
-Resilience Test
-To verify graceful degradation:
+### Option 2: VS Code MCP Client
 
-Rename guardrail_demo.db to guardrail_demo.db.bak
+Add the following to `.vscode/mcp.json`:
 
-Invoke check_text again
+```json
+{
+  "servers": {
+    "guardrail": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "python",
+        "server.py"
+      ]
+    }
+  }
+}
+```
 
-The server should return "Policy check is temporarily degraded..." instead of a traceback
+Open Copilot Chat in **Agent mode**, then prompt:
 
-Restore the database file
+> Check this text: this is a test message
 
-📁 Project Structure
-File Purpose
-server.py MCP server — tools, logging, resilience layer
-seed_db.py One-time database seeding script
-guardrail_demo.db SQLite database (generated)
-manifest.json MCPB bundle manifest for extension packaging
-.vscode/mcp.json VS Code MCP client configuration
-pyproject.toml Dependencies and project metadata
-🔧 Technical Decisions
-Why try/except instead of a retry library?
-The demo prioritizes clarity over configurability. The try/except block makes the degradation path explicit and easy to audit. In production, this would be replaced by a circuit breaker with exponential backoff.
+## Tool Reference
 
-Why SQLite?
-SQLite provides a real, queryable data source with zero infrastructure overhead. It lets the project demonstrate the full LLM → MCP tool → database → response data flow without requiring a running database server.
+### `check_text(text: str) -> str`
 
-Why stderr logging?
-MCP's stdio transport uses stdout exclusively for JSON-RPC messages. Any print() or stdout log corrupts the protocol stream. All application logs are routed to stderr via Python's logging module.
+Checks the submitted text against blocked-term policies stored in SQLite.
 
-🐛 Known Issues
-Claude Desktop (MSIX version): The Windows MSIX distribution has a confirmed configuration virtualization bug that silently ignores claude_desktop_config.json. The .mcpb extension installation is also affected by a regression in version 2.37337.1. The VS Code MCP client is the recommended workaround.
+**Returns:**
 
-Full-table scan: check_text fetches all blocked terms and matches in Python. For large policy sets, this should be moved to a SQL WHERE clause with an indexed column.
+- `ALLOWED: no blocked terms matched.` — no policy violation
+- `BLOCKED: <term> (<reason>)` — one or more blocked terms matched
+- `Policy check is temporarily degraded...` — database unavailable (resilience fallback)
 
-📄 License
-MIT
+## Resilience Behavior
+
+The server wraps all database operations in a `try/except` block. If SQLite is unreachable (missing file, locked, corrupted), the tool returns a user-readable degraded message instead of raising an exception. This prevents the AI conversation from crashing and lets the model relay a meaningful status to the user.
+
+To verify:
+
+1. Rename `guardrail_demo.db` to `guardrail_demo.db.bak`
+2. Call `check_text` — expect the degraded message, not a traceback
+3. Restore the file and confirm normal operation resumes
+
+## Project Structure
+
+```
+guardrail-mcp/
+├── server.py              # MCP server (FastMCP, tools, resilience)
+├── seed_db.py             # Database seeding script
+├── guardrail_demo.db      # SQLite database (generated)
+├── pyproject.toml         # Dependencies and project metadata
+├── manifest.json          # MCPB packaging manifest
+├── .vscode/mcp.json       # VS Code MCP client config
+└── README.md
+```
+
+## Tech Stack
+
+| Layer     | Technology                  |
+| --------- | --------------------------- |
+| Protocol  | MCP Python SDK (`mcp[cli]`) |
+| Transport | stdio                       |
+| Data      | SQLite (`sqlite3`)          |
+| Logging   | Python `logging` → stderr   |
+
+## Notes
+
+- This is a local demo, not a production content-safety system.
+- The server communicates over stdio when launched by an MCP host.
+- `manifest.json` and the `.mcpb` bundle are included for extension packaging, but the primary tested path is the VS Code MCP client.
