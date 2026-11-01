@@ -16,7 +16,7 @@ logger = logging.getLogger("guardrail")
 
 DATABASE_PATH = Path(__file__).with_name("guardrail_demo.db")
 port = int(os.environ.get("PORT", 8000))
-mcp = FastMCP("Guardrail Demo", host="127.0.0.1", port=8000)
+mcp = FastMCP("Guardrail Demo", host="0.0.0.0", port=port)
 
 
 @mcp.tool()
